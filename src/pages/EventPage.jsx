@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import TimeGrid from "../components/TimeGrid.jsx";
 import { bestTimes, icsForPin } from "../lib/score.js";
 import { eventSlots, formatSlotRange } from "../lib/slots.js";
+import { DURATION_OPTIONS, emailDraft, isManager } from "../lib/event.js";
 
 function sessionKey(id) {
   return `gtg:${id}`;
@@ -12,6 +13,7 @@ export default function EventPage({ id }) {
   const [error, setError] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("");
   const [me, setMe] = useState(() => {
     try { return JSON.parse(localStorage.getItem(sessionKey(id)) || "null"); } catch { return null; }
   });
@@ -60,7 +62,7 @@ export default function EventPage({ id }) {
           if (!session || !Object.keys(queued).length) return next;
           const mine = { ...(next.marks[session.name] || {}) };
           for (const [slot, status] of Object.entries(queued)) {
-            if (status === "red") delete mine[slot];
+            if (status === "green") delete mine[slot];
             else mine[slot] = status;
           }
           return { ...next, marks: { ...next.marks, [session.name]: mine } };
@@ -81,7 +83,7 @@ export default function EventPage({ id }) {
     fetch(`/api/events/${id}/join`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: saved.name, password: saved.password || "" }),
+      body: JSON.stringify({ name: saved.name, password: saved.password || "", email: saved.email || "" }),
     })
       .then(async (res) => {
         const data = await res.json();
@@ -126,7 +128,7 @@ export default function EventPage({ id }) {
     setEvent((cur) => {
       if (!cur) return cur;
       const marks = { ...cur.marks, [me.name]: { ...(cur.marks[me.name] || {}) } };
-      if (color === "red") delete marks[me.name][slotId];
+      if (color === "green") delete marks[me.name][slotId];
       else marks[me.name][slotId] = color;
       return { ...cur, marks };
     });
@@ -140,14 +142,14 @@ export default function EventPage({ id }) {
     const res = await fetch(`/api/events/${id}/join`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, password }),
+      body: JSON.stringify({ name, password, email }),
     });
     const data = await res.json();
     if (!res.ok) {
       setError(data.error || "Could not sign in");
       return;
     }
-    const session = { name: data.name, password };
+    const session = { name: data.name, password, email };
     localStorage.setItem(sessionKey(id), JSON.stringify(session));
     setMe(session);
     setEvent(data.event);
@@ -157,6 +159,7 @@ export default function EventPage({ id }) {
     localStorage.removeItem(sessionKey(id));
     setMe(null);
     setPassword("");
+    setEmail("");
     setError("");
   }
 
@@ -167,13 +170,58 @@ export default function EventPage({ id }) {
   }
 
   async function patchEvent(body) {
+    if (!me) return;
     const res = await fetch(`/api/events/${id}/pin`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ ...body, name: me.name, password: me.password || "" }),
     });
     const data = await res.json();
-    if (res.ok) setEvent(data);
+    if (!res.ok) {
+      setError(data.error || "Only the manager can change this");
+      return;
+    }
+    setEvent(data);
+  }
+
+  async function claimManager() {
+    if (!me) return;
+    const res = await fetch(`/api/events/${id}/claim-manager`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: me.name, password: me.password || "" }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setError(data.error || "Could not become manager");
+      return;
+    }
+    setEvent(data);
+  }
+
+  async function emailGroup(kind) {
+    if (!me) return;
+    const res = await fetch(`/api/events/${id}/mail`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: me.name, password: me.password || "" }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setError(data.error || "Could not prepare email");
+      return;
+    }
+    const draft = emailDraft(
+      { ...event, pinnedLabel: event.pinnedSlot ? formatSlotRange(event.pinnedSlot, event.durationMinutes, event) : "" },
+      shareUrl,
+      data.emails || [],
+      kind,
+    );
+    if (!draft.count) {
+      setError("No one has added an email yet. Ask people to sign in with an email, or copy the link.");
+      return;
+    }
+    window.location.href = draft.mailto;
   }
 
   function copyLink() {
@@ -196,15 +244,16 @@ export default function EventPage({ id }) {
   }
   if (!event) return <main className="page"><p>Loading…</p></main>;
 
+  const manager = isManager(event, me?.name);
+
   return (
     <main className="page event-page">
       <div className="event-head">
         <div>
           <h1>{event.name}</h1>
           <p className="lede">
-            Times in {event.timezone}. Green = available, yellow = if needed, red = cannot.
-            Numbers on the group grid are how many people marked that box available.
-            You can come back and edit your colors anytime.
+            Times in {event.timezone}. Choose a status, then click a time box to set it.
+            Default is available (green). You can come back and edit anytime.
           </p>
         </div>
         <div className="share">
@@ -219,17 +268,22 @@ export default function EventPage({ id }) {
           {!me ? (
             <form className="sign" onSubmit={join}>
               <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Sign in as (your name)" />
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email (optional, so the manager can contact you)" />
               <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Optional password (so others cannot overwrite you)" />
               <button className="primary" type="submit">{event.people.some((p) => p.name === name.trim()) ? "Edit my times" : "Sign In"}</button>
               <p className="help">
-                The grid starts red. Drag green or yellow over times that could work.
-                To change a previous submission, sign in with the same name (and password if you set one).
+                Everyone starts as available (green). Select a color, then click a box to change it.
+                Sign in with the same name later to edit.
               </p>
             </form>
           ) : (
             <>
               <p className="signed">
-                <span>Editing as <strong>{me.name}</strong> — drag again to change any box. Saves live.</span>
+                <span>
+                  Editing as <strong>{me.name}</strong>
+                  {manager ? " · manager" : ""}
+                  {" — select a color, then click a box. Saves live."}
+                </span>
                 <button className="ghost" type="button" onClick={signOut}>Switch person</button>
               </p>
               <div className="palette">
@@ -305,6 +359,7 @@ export default function EventPage({ id }) {
                       }}
                     >
                       {p.name}
+                      {isManager(event, p.name) ? " · manager" : ""}
                       {me?.name === p.name ? " · you" : ""}
                       {p.hasPassword ? " · locked" : ""}
                     </button>
@@ -316,21 +371,27 @@ export default function EventPage({ id }) {
           </section>
           <section className="panel best" style={{ marginTop: 16 }}>
             <h2>Best times</h2>
+            {event.managerName ? <p className="help">Manager: {event.managerName}</p> : null}
+            {me && !event.managerName ? (
+              <button className="ghost" type="button" onClick={claimManager}>Become the manager</button>
+            ) : null}
             <label className="field">
               <span>Meeting length</span>
               <select
-                value={event.durationMinutes}
+                value={DURATION_OPTIONS.some((d) => d.value === event.durationMinutes) ? event.durationMinutes : 120}
+                disabled={!manager}
                 onChange={(e) => patchEvent({ durationMinutes: Number(e.target.value) })}
               >
-                <option value={30}>30 minutes</option>
-                <option value={60}>1 hour</option>
-                <option value={90}>1.5 hours</option>
+                {DURATION_OPTIONS.map((d) => (
+                  <option key={d.value} value={d.value}>{d.label}</option>
+                ))}
               </select>
             </label>
             <label className="toggle">
               <input
                 type="checkbox"
                 checked={event.hideReds}
+                disabled={!manager}
                 onChange={(e) => patchEvent({ hideReds: e.target.checked })}
               />
               Hide times anyone marked cannot
@@ -347,11 +408,13 @@ export default function EventPage({ id }) {
                       {s.yellow ? ` · ${s.yellow} if needed` : ""}
                       {s.red ? ` · ${s.red} cannot` : ""}
                     </div>
-                    <div className="actions">
-                      <button className="ghost" onClick={() => patchEvent({ pinnedSlot: s.startId })}>
-                        {event.pinnedSlot === s.startId ? "Pinned" : "Pin"}
-                      </button>
-                    </div>
+                    {manager ? (
+                      <div className="actions">
+                        <button className="ghost" onClick={() => patchEvent({ pinnedSlot: s.startId })}>
+                          {event.pinnedSlot === s.startId ? "Pinned" : "Pin"}
+                        </button>
+                      </div>
+                    ) : null}
                   </li>
                 ))}
               </ol>
@@ -362,7 +425,22 @@ export default function EventPage({ id }) {
                   Copy pinned time
                 </button>
                 <button className="ghost" onClick={downloadIcs}>Download .ics</button>
-                <button className="linkish" onClick={() => patchEvent({ pinnedSlot: null })}>Unpin</button>
+                {manager ? <button className="linkish" onClick={() => patchEvent({ pinnedSlot: null })}>Unpin</button> : null}
+              </div>
+            ) : null}
+            {manager ? (
+              <div className="mail-box">
+                <h2>Email the group</h2>
+                <p className="help">
+                  Opens your email app with BCC. People must have entered an email when signing in.
+                  No paid mail service is required.
+                </p>
+                <div className="actions">
+                  <button className="ghost" type="button" onClick={() => emailGroup("invite")}>Email invite link</button>
+                  <button className="ghost" type="button" disabled={!event.pinnedSlot} onClick={() => emailGroup("pinned")}>
+                    Email proposed time
+                  </button>
+                </div>
               </div>
             ) : null}
           </section>

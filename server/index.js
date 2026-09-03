@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import express from "express";
 import { WebSocketServer } from "ws";
 import { createEvent, getEvent, publicEvent, updateEvent } from "./store.js";
+import { applySlotUpdates, DEFAULT_DURATION_MINUTES, isValidDuration } from "../src/lib/event.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dev = process.argv.includes("--dev");
@@ -41,8 +42,20 @@ function broadcast(eventId, payload, except) {
   }
 }
 
+function isManager(event, name) {
+  return Boolean(event.managerName && name && event.managerName.toLowerCase() === name.toLowerCase());
+}
+
+function applyPaint(event, name, updates) {
+  updateEvent(event.id, (e) => {
+    if (!e.marks[name]) e.marks[name] = {};
+    applySlotUpdates(e.marks[name], updates);
+  });
+  return getEvent(event.id);
+}
+
 function authPerson(event, name, password) {
-  const person = event.people.find((p) => p.name === name);
+  const person = event.people.find((p) => p.name.toLowerCase() === String(name).toLowerCase());
   if (!person) return { error: "Sign in first" };
   if (person.passwordHash && person.passwordHash !== hashPassword(event.id, name, password)) {
     return { error: "Wrong name or password" };
@@ -53,17 +66,22 @@ function authPerson(event, name, password) {
 app.post("/api/events", (req, res) => {
   const {
     name,
+    managerName,
+    managerEmail = "",
     mode = "dates",
     dates = [],
     weekdays = [],
     hourStart = 9,
     hourEnd = 17,
     timezone,
-    durationMinutes = 60,
+    durationMinutes = DEFAULT_DURATION_MINUTES,
   } = req.body || {};
 
   const title = String(name || "").trim();
+  const organizer = String(managerName || "").trim();
+  const email = String(managerEmail || "").trim();
   if (!title) return res.status(400).json({ error: "Event name is required" });
+  if (!organizer) return res.status(400).json({ error: "Manager name is required" });
   if (mode === "dates" && (!Array.isArray(dates) || dates.length === 0)) {
     return res.status(400).json({ error: "Pick at least one date" });
   }
@@ -74,8 +92,10 @@ app.post("/api/events", (req, res) => {
     return res.status(400).json({ error: "Invalid time range" });
   }
 
+  const duration = isValidDuration(Number(durationMinutes)) ? Number(durationMinutes) : DEFAULT_DURATION_MINUTES;
+  const id = newId();
   const event = createEvent({
-    id: newId(),
+    id,
     name: title,
     mode: mode === "weekdays" ? "weekdays" : "dates",
     dates: mode === "weekdays" ? [] : [...new Set(dates)].sort(),
@@ -83,12 +103,19 @@ app.post("/api/events", (req, res) => {
     hourStart: Number(hourStart),
     hourEnd: Number(hourEnd),
     timezone: timezone || "UTC",
-    durationMinutes: [30, 60, 90].includes(durationMinutes) ? durationMinutes : 60,
+    durationMinutes: duration,
     createdAt: new Date().toISOString(),
     pinnedSlot: null,
     hideReds: false,
-    people: [],
-    marks: {},
+    managerName: organizer,
+    people: [{
+      name: organizer,
+      email,
+      passwordHash: "",
+      hasPassword: false,
+      joinedAt: new Date().toISOString(),
+    }],
+    marks: { [organizer]: {} },
   });
 
   res.json(publicEvent(event));
@@ -105,6 +132,7 @@ app.post("/api/events/:id/join", (req, res) => {
   if (!event) return res.status(404).json({ error: "Event not found" });
   const name = String(req.body?.name || "").trim();
   const password = String(req.body?.password || "");
+  const email = String(req.body?.email || "").trim();
   if (!name) return res.status(400).json({ error: "Name is required" });
   if (name.length > 40) return res.status(400).json({ error: "Name is too long" });
 
@@ -112,22 +140,37 @@ app.post("/api/events/:id/join", (req, res) => {
   if (existing) {
     const result = authPerson(event, existing.name, password);
     if (result.error) return res.status(403).json({ error: result.error });
-    return res.json({ name: existing.name, event: publicEvent(event) });
+    if (email) {
+      updateEvent(event.id, (e) => {
+        const person = e.people.find((p) => p.name === existing.name);
+        if (person) person.email = email;
+      });
+    }
+    const updated = getEvent(event.id);
+    return res.json({
+      name: existing.name,
+      event: publicEvent(updated, { includeEmails: isManager(updated, existing.name) }),
+    });
   }
 
   updateEvent(event.id, (e) => {
     e.people.push({
       name,
+      email,
       passwordHash: hashPassword(event.id, name, password),
       hasPassword: Boolean(password),
       joinedAt: new Date().toISOString(),
     });
     e.marks[name] = {};
+    if (!e.managerName) e.managerName = name;
   });
 
   const updated = getEvent(event.id);
   broadcast(event.id, { type: "state", event: publicEvent(updated) });
-  res.json({ name, event: publicEvent(updated) });
+  res.json({
+    name,
+    event: publicEvent(updated, { includeEmails: isManager(updated, name) }),
+  });
 });
 
 app.post("/api/events/:id/paint", (req, res) => {
@@ -138,32 +181,67 @@ app.post("/api/events/:id/paint", (req, res) => {
   if (result.error) return res.status(403).json({ error: result.error });
   const updates = req.body?.updates && typeof req.body.updates === "object" ? req.body.updates : {};
   const allowed = new Set(["green", "yellow", "red"]);
-  const updated = updateEvent(event.id, (e) => {
-    if (!e.marks[name]) e.marks[name] = {};
-    for (const [slotId, status] of Object.entries(updates)) {
-      if (!allowed.has(status)) continue;
-      if (status === "red") delete e.marks[name][slotId];
-      else e.marks[name][slotId] = status;
-    }
-  });
+  const cleaned = {};
+  for (const [slotId, status] of Object.entries(updates)) {
+    if (allowed.has(status)) cleaned[slotId] = status;
+  }
+  const updated = applyPaint(event, name, cleaned);
   broadcast(event.id, { type: "state", event: publicEvent(updated) });
-  res.json(publicEvent(updated));
+  res.json(publicEvent(updated, { includeEmails: isManager(updated, name) }));
 });
 
 app.post("/api/events/:id/pin", (req, res) => {
   const event = getEvent(req.params.id);
   if (!event) return res.status(404).json({ error: "Event not found" });
+  const name = String(req.body?.name || "").trim();
+  const result = authPerson(event, name, String(req.body?.password || ""));
+  if (result.error) return res.status(403).json({ error: result.error });
+  if (!isManager(event, result.person.name) && event.managerName) {
+    return res.status(403).json({ error: "Only the manager can change the meeting setup" });
+  }
+
   const pinnedSlot = req.body?.pinnedSlot ?? null;
   const hideReds = req.body?.hideReds;
   const durationMinutes = req.body?.durationMinutes;
 
   const updated = updateEvent(event.id, (e) => {
+    if (!e.managerName) e.managerName = result.person.name;
     if (pinnedSlot === null || typeof pinnedSlot === "string") e.pinnedSlot = pinnedSlot;
     if (typeof hideReds === "boolean") e.hideReds = hideReds;
-    if ([30, 60, 90].includes(durationMinutes)) e.durationMinutes = durationMinutes;
+    if (isValidDuration(durationMinutes)) e.durationMinutes = durationMinutes;
   });
   broadcast(event.id, { type: "state", event: publicEvent(updated) });
-  res.json(publicEvent(updated));
+  res.json(publicEvent(updated, { includeEmails: true }));
+});
+
+app.post("/api/events/:id/claim-manager", (req, res) => {
+  const event = getEvent(req.params.id);
+  if (!event) return res.status(404).json({ error: "Event not found" });
+  const name = String(req.body?.name || "").trim();
+  const result = authPerson(event, name, String(req.body?.password || ""));
+  if (result.error) return res.status(403).json({ error: result.error });
+  if (event.managerName && !isManager(event, result.person.name)) {
+    return res.status(403).json({ error: `${event.managerName} is already the manager` });
+  }
+  const updated = updateEvent(event.id, (e) => {
+    e.managerName = result.person.name;
+  });
+  broadcast(event.id, { type: "state", event: publicEvent(updated) });
+  res.json(publicEvent(updated, { includeEmails: true }));
+});
+
+app.post("/api/events/:id/mail", (req, res) => {
+  const event = getEvent(req.params.id);
+  if (!event) return res.status(404).json({ error: "Event not found" });
+  const name = String(req.body?.name || "").trim();
+  const result = authPerson(event, name, String(req.body?.password || ""));
+  if (result.error) return res.status(403).json({ error: result.error });
+  if (!isManager(event, result.person.name)) {
+    return res.status(403).json({ error: "Only the manager can email the group" });
+  }
+  const emails = event.people.map((p) => p.email).filter(Boolean);
+  const missing = event.people.filter((p) => !p.email).map((p) => p.name);
+  res.json({ emails, missing, managerEmail: result.person.email || "" });
 });
 
 const server = http.createServer(app);
@@ -204,15 +282,7 @@ wss.on("connection", (ws) => {
         return;
       }
       const updates = msg.updates && typeof msg.updates === "object" ? msg.updates : {};
-      const allowed = new Set(["green", "yellow", "red"]);
-      updateEvent(event.id, (e) => {
-        if (!e.marks[name]) e.marks[name] = {};
-        for (const [slotId, status] of Object.entries(updates)) {
-          if (!allowed.has(status)) continue;
-          if (status === "red") delete e.marks[name][slotId];
-          else e.marks[name][slotId] = status;
-        }
-      });
+      applyPaint(event, name, updates);
       const updated = getEvent(event.id);
       broadcast(event.id, { type: "state", event: publicEvent(updated) });
     }

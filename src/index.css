@@ -44,12 +44,23 @@ h2 { font-size: 16px; margin: 0 0 8px; }
 .event-name {
   display: block;
   width: min(520px, 100%);
-  margin: 0 auto 28px;
+  margin: 0 auto 12px;
   font-size: 22px;
   padding: 10px 12px;
   border: 1px solid var(--line);
   background: var(--paper);
 }
+.manager-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  max-width: 720px;
+  margin: 0 auto 28px;
+}
+@media (max-width: 700px) {
+  .manager-fields { grid-template-columns: 1fr; }
+}
+.mail-box { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
 
 .create-grid {
   display: grid;

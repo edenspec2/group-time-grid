@@ -26,7 +26,10 @@ export default function App() {
         </a>
         <span className="hint">When2meet-style availability, with yellow and live counts</span>
       </header>
-      {match ? <EventPage id={match[1]} /> : <CreateEvent onCreated={(id) => go(`/m/${id}`)} />}
+      {match ? <EventPage id={match[1]} /> : <CreateEvent onCreated={(id, session) => {
+        if (session) localStorage.setItem(`gtg:${id}`, JSON.stringify(session));
+        go(`/m/${id}`);
+      }} />}
     </>
   );
 }

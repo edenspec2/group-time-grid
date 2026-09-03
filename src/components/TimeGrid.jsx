@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo, useRef } from "react";
 import { heatColor, heatText, personStatus, slotBreakdown } from "../lib/score.js";
 import { formatClock, formatInZone, slotId } from "../lib/slots.js";
 
@@ -14,7 +14,6 @@ export default function TimeGrid({
   onHover,
 }) {
   const gridRef = useRef(null);
-  const painting = useRef(false);
   const viewerTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   function colorFor(id) {
@@ -22,19 +21,6 @@ export default function TimeGrid({
     if (previewName) return personStatus(event.marks, previewName, id);
     return "";
   }
-
-  function paintAt(clientX, clientY) {
-    if (!onPaint) return;
-    const el = document.elementFromPoint(clientX, clientY);
-    const slot = el?.closest("[data-slot]")?.dataset.slot;
-    if (slot) onPaint(slot);
-  }
-
-  useEffect(() => {
-    function up() { painting.current = false; }
-    window.addEventListener("pointerup", up);
-    return () => window.removeEventListener("pointerup", up);
-  }, []);
 
   const style = { gridTemplateColumns: `72px repeat(${cols.length}, var(--cell-w))` };
   const tip = useMemo(() => (hoverSlot && mode === "heat" && !previewName ? slotBreakdown(event, hoverSlot) : null), [event, hoverSlot, mode, previewName]);
@@ -45,15 +31,6 @@ export default function TimeGrid({
         className={`grid ${mode === "heat" && !previewName ? "heat" : ""}`}
         ref={gridRef}
         style={style}
-        onPointerDown={(e) => {
-          if (mode !== "mine") return;
-          painting.current = true;
-          gridRef.current?.setPointerCapture(e.pointerId);
-          paintAt(e.clientX, e.clientY);
-        }}
-        onPointerMove={(e) => {
-          if (mode === "mine" && painting.current) paintAt(e.clientX, e.clientY);
-        }}
       >
         <div className="corner" />
         {cols.map((col) => (
@@ -87,6 +64,9 @@ export default function TimeGrid({
                     data-slot={id}
                     className={`cell ${hourStart ? "hour" : ""} ${heat ? "" : mine} ${event.pinnedSlot === id ? "pinned" : ""}`}
                     style={heat ? { background: bg, color: fg } : undefined}
+                    onClick={() => {
+                      if (mode === "mine") onPaint?.(id);
+                    }}
                     onPointerEnter={() => onHover?.(id)}
                     onPointerLeave={() => onHover?.(null)}
                   >

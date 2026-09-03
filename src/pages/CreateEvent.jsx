@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { defaultDates, hourOptions, timeZones, toDateKey, WEEKDAYS } from "../lib/slots.js";
+import { DEFAULT_DURATION_MINUTES, DURATION_OPTIONS } from "../lib/event.js";
 
 function monthMatrix(year, month) {
   const first = new Date(year, month, 1);
@@ -83,6 +84,9 @@ export default function CreateEvent({ onCreated }) {
   const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
   const [name, setName] = useState("");
+  const [managerName, setManagerName] = useState("");
+  const [managerEmail, setManagerEmail] = useState("");
+  const [durationMinutes, setDurationMinutes] = useState(DEFAULT_DURATION_MINUTES);
   const [mode, setMode] = useState("dates");
   const [dates, setDates] = useState(defaultDates);
   const [weekdays, setWeekdays] = useState([1, 2, 3, 4, 5]);
@@ -106,17 +110,20 @@ export default function CreateEvent({ onCreated }) {
         signal: AbortSignal.timeout(15000),
         body: JSON.stringify({
           name,
+          managerName,
+          managerEmail,
           mode,
           dates,
           weekdays,
           hourStart: Number(hourStart),
           hourEnd: Number(hourEnd),
           timezone,
+          durationMinutes,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not create event");
-      onCreated(data.id);
+      onCreated(data.id, { name: managerName.trim(), password: "", email: managerEmail.trim() });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -131,7 +138,8 @@ export default function CreateEvent({ onCreated }) {
       <p className="lede">
         Pick possible dates and hours. Everyone opens the same link, paints green / yellow / red,
         and the group grid shows how many people can make each slot. Hours are split in half
-        (30 minutes). The next two weeks are selected by default.
+        (30 minutes). The next two weeks are selected by default. You are the manager and can
+        email the group later if needed.
       </p>
 
       <input
@@ -140,6 +148,21 @@ export default function CreateEvent({ onCreated }) {
         value={name}
         onChange={(e) => setName(e.target.value)}
       />
+      <div className="manager-fields">
+        <input
+          type="text"
+          placeholder="Your name (you will be the manager)"
+          value={managerName}
+          onChange={(e) => setManagerName(e.target.value)}
+          required
+        />
+        <input
+          type="email"
+          placeholder="Your email (optional, for sending invites)"
+          value={managerEmail}
+          onChange={(e) => setManagerEmail(e.target.value)}
+        />
+      </div>
 
       <div className="create-grid">
         <section className="panel">
@@ -199,9 +222,17 @@ export default function CreateEvent({ onCreated }) {
               ))}
             </select>
           </label>
+          <label className="field">
+            <span>Meeting length</span>
+            <select value={durationMinutes} onChange={(e) => setDurationMinutes(Number(e.target.value))}>
+              {DURATION_OPTIONS.map((d) => (
+                <option key={d.value} value={d.value}>{d.label}</option>
+              ))}
+            </select>
+          </label>
           <div className="ready">
             <span>Ready?</span>
-            <button className="primary" type="submit" disabled={busy || !name.trim()}>
+            <button className="primary" type="submit" disabled={busy || !name.trim() || !managerName.trim()}>
               Create Event
             </button>
           </div>

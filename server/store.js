@@ -45,7 +45,7 @@ export function updateEvent(id, fn) {
   return event;
 }
 
-export function publicEvent(event) {
+export function publicEvent(event, { includeEmails = false } = {}) {
   if (!event) return null;
   return {
     id: event.id,
@@ -60,10 +60,13 @@ export function publicEvent(event) {
     createdAt: event.createdAt,
     pinnedSlot: event.pinnedSlot,
     hideReds: event.hideReds,
-    people: event.people.map(({ name, hasPassword, joinedAt }) => ({
+    managerName: event.managerName || "",
+    people: event.people.map(({ name, hasPassword, joinedAt, email }) => ({
       name,
       hasPassword,
       joinedAt,
+      hasEmail: Boolean(email),
+      ...(includeEmails ? { email: email || "" } : {}),
     })),
     marks: event.marks,
   };

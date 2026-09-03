@@ -1,5 +1,5 @@
 export function personStatus(marks, name, slotId) {
-  return marks?.[name]?.[slotId] || "red";
+  return marks?.[name]?.[slotId] || "green";
 }
 
 export function slotBreakdown(event, slotId) {
@@ -50,7 +50,7 @@ function consecutiveIds(startId, slotCount, cols, times) {
 
 export function bestTimes(event, cols, times) {
   if (!event.people?.length) return [];
-  const slotCount = Math.max(1, Math.round((event.durationMinutes || 60) / 30));
+  const slotCount = Math.max(1, Math.round((event.durationMinutes || 120) / 30));
   const candidates = [];
 
   for (const col of cols) {
@@ -104,7 +104,7 @@ function icsStamp(dateKey, hour, minute) {
 }
 
 export function icsForPin(event, startId) {
-  const duration = event.durationMinutes || 60;
+  const duration = event.durationMinutes || 120;
   const [columnKey, time] = startId.split("T");
   const [hour, minute] = time.split(":").map(Number);
   const endMin = hour * 60 + minute + duration;

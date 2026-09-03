@@ -2,12 +2,13 @@
 
 A When2meet-style scheduler: one link, everyone paints 30-minute boxes, and the group calendar shows **how many people picked the same time**.
 
-- **Green** available
+- **Green** available (default)
 - **Yellow** possible but not great
-- **Red** cannot (the grid starts red after you sign in)
+- **Red** cannot
+- Click a status, then click a box (no drag)
+- One **manager** can pin a 2/3/4-hour time and email the group
 - Live updates for everyone on the same event link
 - Each group cell shows `N of total` people available, plus names on hover
-- Top 3 suggested blocks for the chosen meeting length
 
 ## Run locally
 
@@ -32,9 +33,9 @@ Then open `http://YOUR-LAN-IP:3001`.
 1. Name the event, drag-select dates (defaults to the next two weeks), set the hour window and timezone.
 2. Share the `/m/...` URL.
 3. Each person signs in with a display name. Optional password stops others from overwriting that name.
-4. Drag green/yellow/red on **Your Availability**. Come back later and sign in with the same name to edit.
-5. Read **Group's Availability**: the number in a box is how many people marked it available. Darker green is better overlap.
-6. Pin a suggested time and copy it or download an `.ics`.
+4. Select Available / If needed / Cannot, then **click** a 30-minute box. The grid starts available (green). Come back later and sign in with the same name to edit.
+5. The event creator is the **manager**. They can pin a 2/3/4-hour block and email the group (opens the manager’s mail app; people should enter an email when signing in).
+6. Read **Group's Availability**: the number in a box is how many people marked it available. Darker green is better overlap.
 
 No accounts. Event data is stored in `data/events.json` on the machine running the server.
 
