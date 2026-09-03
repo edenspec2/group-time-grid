@@ -22,15 +22,18 @@ export function addDays(dateKey, days) {
   return toDateKey(dt);
 }
 
+export const SLOT_MINUTES = 30;
+export const DEFAULT_SPAN_DAYS = 14;
+
 export function defaultDates() {
   const start = toDateKey(new Date());
-  return Array.from({ length: 7 }, (_, i) => addDays(start, i));
+  return Array.from({ length: DEFAULT_SPAN_DAYS }, (_, i) => addDays(start, i));
 }
 
 export function minutesRange(hourStart, hourEnd) {
   const out = [];
   for (let h = hourStart; h < hourEnd; h++) {
-    for (const m of [0, 15, 30, 45]) out.push({ hour: h, minute: m });
+    for (const m of [0, 30]) out.push({ hour: h, minute: m });
   }
   return out;
 }

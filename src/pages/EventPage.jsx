@@ -73,6 +73,30 @@ export default function EventPage({ id }) {
     return () => ws.close();
   }, [id]);
 
+  useEffect(() => {
+    const saved = (() => {
+      try { return JSON.parse(localStorage.getItem(sessionKey(id)) || "null"); } catch { return null; }
+    })();
+    if (!saved?.name) return;
+    fetch(`/api/events/${id}/join`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: saved.name, password: saved.password || "" }),
+    })
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) {
+          localStorage.removeItem(sessionKey(id));
+          setMe(null);
+          setError("Sign in again to edit your times.");
+          return;
+        }
+        setMe(saved);
+        setEvent(data.event);
+      })
+      .catch(() => {});
+  }, [id]);
+
   const flush = useCallback(() => {
     const updates = pending.current;
     pending.current = {};
@@ -129,6 +153,19 @@ export default function EventPage({ id }) {
     setEvent(data.event);
   }
 
+  function signOut() {
+    localStorage.removeItem(sessionKey(id));
+    setMe(null);
+    setPassword("");
+    setError("");
+  }
+
+  function startEditAs(personName) {
+    setPreviewName(null);
+    setName(personName);
+    setError("");
+  }
+
   async function patchEvent(body) {
     const res = await fetch(`/api/events/${id}/pin`, {
       method: "POST",
@@ -167,6 +204,7 @@ export default function EventPage({ id }) {
           <p className="lede">
             Times in {event.timezone}. Green = available, yellow = if needed, red = cannot.
             Numbers on the group grid are how many people marked that box available.
+            You can come back and edit your colors anytime.
           </p>
         </div>
         <div className="share">
@@ -182,12 +220,18 @@ export default function EventPage({ id }) {
             <form className="sign" onSubmit={join}>
               <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Sign in as (your name)" />
               <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Optional password (so others cannot overwrite you)" />
-            <button className="primary" type="submit">Sign In</button>
-              <p className="help">The grid starts red. Drag green or yellow over times that could work.</p>
+              <button className="primary" type="submit">{event.people.some((p) => p.name === name.trim()) ? "Edit my times" : "Sign In"}</button>
+              <p className="help">
+                The grid starts red. Drag green or yellow over times that could work.
+                To change a previous submission, sign in with the same name (and password if you set one).
+              </p>
             </form>
           ) : (
             <>
-              <p className="signed">Signed in as <strong>{me.name}</strong></p>
+              <p className="signed">
+                <span>Editing as <strong>{me.name}</strong> — drag again to change any box. Saves live.</span>
+                <button className="ghost" type="button" onClick={signOut}>Switch person</button>
+              </p>
               <div className="palette">
                 {[
                   ["green", "Available", "g"],
@@ -244,15 +288,30 @@ export default function EventPage({ id }) {
           <section className="panel">
             <h2>People ({event.people.length})</h2>
             {event.people.length === 0 ? <p className="help">Share the link so people can sign in.</p> : (
+              <>
+                {!me ? <p className="help">Click a name to preview, then sign in with that name to edit those times.</p> : null}
               <ul className="people">
                 {event.people.map((p) => (
                   <li key={p.name}>
-                    <button className={previewName === p.name ? "on" : ""} onClick={() => setPreviewName(previewName === p.name ? null : p.name)}>
-                      {p.name}{p.hasPassword ? " · locked" : ""}
+                    <button
+                      className={previewName === p.name || me?.name === p.name ? "on" : ""}
+                      onClick={() => {
+                        if (me?.name === p.name) {
+                          setPreviewName(null);
+                          return;
+                        }
+                        if (!me) startEditAs(p.name);
+                        setPreviewName(previewName === p.name ? null : p.name);
+                      }}
+                    >
+                      {p.name}
+                      {me?.name === p.name ? " · you" : ""}
+                      {p.hasPassword ? " · locked" : ""}
                     </button>
                   </li>
                 ))}
               </ul>
+              </>
             )}
           </section>
           <section className="panel best" style={{ marginTop: 16 }}>

@@ -71,12 +71,8 @@ export default function TimeGrid({
           return (
             <div key={`${t.hour}-${t.minute}`} style={{ display: "contents" }}>
               <div className={`time ${hourStart ? "hour" : ""}`}>
-                {hourStart ? (
-                  <>
-                    {formatClock(t.hour, t.minute)}
-                    {local && local !== formatClock(t.hour, t.minute) ? <span className="local">{local}</span> : null}
-                  </>
-                ) : null}
+                {formatClock(t.hour, t.minute)}
+                {local && local !== formatClock(t.hour, t.minute) ? <span className="local">{local}</span> : null}
               </div>
               {cols.map((col) => {
                 const id = slotId(col.key, t.hour, t.minute);

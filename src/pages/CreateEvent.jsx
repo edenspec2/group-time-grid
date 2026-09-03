@@ -130,7 +130,8 @@ export default function CreateEvent({ onCreated }) {
       <h1>Plan a new event</h1>
       <p className="lede">
         Pick possible dates and hours. Everyone opens the same link, paints green / yellow / red,
-        and the group grid shows how many people can make each slot.
+        and the group grid shows how many people can make each slot. Hours are split in half
+        (30 minutes). The next two weeks are selected by default.
       </p>
 
       <input
@@ -143,7 +144,7 @@ export default function CreateEvent({ onCreated }) {
       <div className="create-grid">
         <section className="panel">
           <h2>What dates might work?</h2>
-          <p className="help">Click and drag dates to choose possibilities.</p>
+          <p className="help">Click and drag dates to choose possibilities. The next 14 days start selected.</p>
           <label className="field">
             <span>Survey using</span>
             <select value={mode} onChange={(e) => setMode(e.target.value)}>

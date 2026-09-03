@@ -50,7 +50,7 @@ function consecutiveIds(startId, slotCount, cols, times) {
 
 export function bestTimes(event, cols, times) {
   if (!event.people?.length) return [];
-  const slotCount = Math.max(1, Math.round((event.durationMinutes || 60) / 15));
+  const slotCount = Math.max(1, Math.round((event.durationMinutes || 60) / 30));
   const candidates = [];
 
   for (const col of cols) {

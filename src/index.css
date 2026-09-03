@@ -156,7 +156,7 @@ button.ghost, button.linkish {
 }
 
 .sign { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
-.signed { font-size: 14px; color: var(--muted); margin-bottom: 8px; }
+.signed { font-size: 14px; color: var(--muted); margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 
 .palette { display: flex; gap: 6px; margin: 8px 0 12px; flex-wrap: wrap; }
 .palette button {
@@ -206,7 +206,7 @@ button.ghost, button.linkish {
 .grid .hour { border-top: 1px solid #c4c0b6; }
 .grid .cell {
   width: var(--cell-w);
-  height: 22px;
+  height: 32px;
   cursor: pointer;
   position: relative;
   touch-action: none;
@@ -215,7 +215,7 @@ button.ghost, button.linkish {
 .grid .cell.yellow { background: var(--yellow); }
 .grid .cell.red { background: #f87171; }
 .grid .cell.pinned { outline: 2px solid #111; outline-offset: -2px; z-index: 1; }
-.grid.heat .cell { cursor: default; height: 38px; text-align: center; padding-top: 4px; }
+.grid.heat .cell { cursor: default; height: 44px; text-align: center; padding-top: 6px; }
 .grid.heat .count {
   font-size: 14px; font-weight: 700; line-height: 16px; display: block;
 }

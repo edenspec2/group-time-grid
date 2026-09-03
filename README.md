@@ -1,6 +1,6 @@
 # Group Time Grid
 
-A When2meet-style scheduler: one link, everyone paints 15-minute boxes, and the group calendar shows **how many people picked the same time**.
+A When2meet-style scheduler: one link, everyone paints 30-minute boxes, and the group calendar shows **how many people picked the same time**.
 
 - **Green** available
 - **Yellow** possible but not great
@@ -29,10 +29,10 @@ Then open `http://YOUR-LAN-IP:3001`.
 
 ## How to use
 
-1. Name the event, drag-select dates (or weekdays), set the hour window and timezone.
+1. Name the event, drag-select dates (defaults to the next two weeks), set the hour window and timezone.
 2. Share the `/m/...` URL.
 3. Each person signs in with a display name. Optional password stops others from overwriting that name.
-4. Drag green/yellow/red on **Your Availability**.
+4. Drag green/yellow/red on **Your Availability**. Come back later and sign in with the same name to edit.
 5. Read **Group's Availability**: the number in a box is how many people marked it available. Darker green is better overlap.
 6. Pin a suggested time and copy it or download an `.ics`.
 
