@@ -1,14 +1,15 @@
 :root {
-  --bg: #f4f1ea;
-  --ink: #171717;
-  --muted: #5c5c5c;
-  --line: #d6d3cb;
-  --paper: #fffcf7;
-  --header: #1f2933;
+  --bg: #f3eee6;
+  --ink: #171411;
+  --muted: #6b6258;
+  --line: #e0d6c8;
+  --paper: #fffaf3;
+  --header: #111111;
   --green: #22c55e;
   --yellow: #eab308;
   --red: #ef4444;
-  --accent: #0f766e;
+  --accent: #9a3412;
+  --accent-soft: #f4d7c8;
 }
 
 * { box-sizing: border-box; }
@@ -28,11 +29,83 @@ a { color: inherit; }
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  padding: 10px 20px;
+  padding: 8px 20px;
 }
-.topbar a { text-decoration: none; font-weight: 600; }
-.topbar .brand { color: #99f6e4; }
-.topbar .hint { color: #cbd5e1; font-size: 13px; }
+.topbar a { text-decoration: none; }
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #fff;
+}
+.brand img {
+  height: 46px;
+  width: auto;
+  display: block;
+}
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+.brand-text strong { font-size: 16px; letter-spacing: 0.02em; }
+.brand-text small { font-size: 11px; font-weight: 400; color: #d4d4d4; }
+.topbar .hint { color: #c4b8aa; font-size: 13px; }
+
+.hero {
+  position: relative;
+  height: 220px;
+  overflow: hidden;
+  border-radius: 14px;
+  margin-bottom: 14px;
+}
+.hero img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 40%;
+  filter: brightness(0.68);
+}
+.hero-copy {
+  position: absolute;
+  left: 22px;
+  bottom: 18px;
+  color: #fff;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.55);
+}
+.hero-copy p { margin: 0 0 4px; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; }
+.hero-copy h1 { margin: 0; font-size: 28px; }
+
+.photo-strip {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: 8px;
+  margin-bottom: 28px;
+}
+.photo-strip img {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+}
+.event-banner {
+  height: 120px;
+  overflow: hidden;
+  border-radius: 14px;
+  margin-bottom: 18px;
+}
+.event-banner img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 35%;
+  filter: brightness(0.85);
+}
+@media (max-width: 700px) {
+  .photo-strip { grid-template-columns: 1fr; }
+  .hero, .event-banner { height: 160px; border-radius: 0; margin-left: -16px; margin-right: -16px; }
+}
 
 .page { max-width: 1100px; margin: 0 auto; padding: 24px 16px 64px; }
 .event-page { max-width: 1400px; }
@@ -49,12 +122,13 @@ h2 { font-size: 16px; margin: 0 0 8px; }
   padding: 10px 12px;
   border: 1px solid var(--line);
   background: var(--paper);
+  border-radius: 8px;
 }
 .manager-fields {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 10px;
-  max-width: 720px;
+  max-width: 900px;
   margin: 0 auto 28px;
 }
 @media (max-width: 700px) {
@@ -75,18 +149,21 @@ h2 { font-size: 16px; margin: 0 0 8px; }
   background: var(--paper);
   border: 1px solid var(--line);
   padding: 16px;
+  border-radius: 12px;
 }
 .help, .panel p.help { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
 
 label.field { display: block; font-size: 13px; margin: 10px 0; }
 label.field span { display: block; margin-bottom: 4px; color: var(--muted); }
-select, input[type="text"], input[type="password"] {
+select, input[type="text"], input[type="password"], input[type="email"], input[type="url"], textarea {
   width: 100%;
   padding: 8px 10px;
   border: 1px solid var(--line);
   background: #fff;
   font: inherit;
+  border-radius: 8px;
 }
+input[type="file"] { width: 100%; font: inherit; }
 
 .months { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 @media (max-width: 700px) { .months { grid-template-columns: 1fr; } }
@@ -127,6 +204,7 @@ button.primary {
   font: inherit;
   font-weight: 600;
   cursor: pointer;
+  border-radius: 8px;
 }
 button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
 button.ghost, button.linkish {
@@ -213,7 +291,7 @@ button.ghost, button.linkish {
   font-size: 11px; padding: 0 8px; color: var(--muted); white-space: nowrap;
   display: flex; align-items: center; gap: 6px;
 }
-.grid .time .local { color: #0f766e; }
+.grid .time .local { color: var(--accent); }
 .grid .hour { border-top: 1px solid #c4c0b6; }
 .grid .cell {
   width: var(--cell-w);
@@ -255,7 +333,7 @@ button.ghost, button.linkish {
   padding: 8px;
   cursor: pointer;
 }
-.people button.on { border-color: var(--accent); background: #ccfbf1; }
+.people button.on { border-color: var(--accent); background: var(--accent-soft); }
 
 .best ol { margin: 0; padding-left: 18px; }
 .best li { margin: 0 0 12px; }
@@ -266,3 +344,47 @@ button.ghost, button.linkish {
 
 .status { font-size: 12px; color: var(--muted); margin-top: 8px; }
 .status.off { color: #b45309; }
+
+.materials { margin-bottom: 16px; }
+.material-list { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 10px; }
+.material-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.material-list a { font-weight: 600; }
+.material-note { margin: 4px 0 0; font-size: 13px; }
+.chip {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 999px;
+  margin-right: 8px;
+  background: #eee7dc;
+}
+.chip-paper { background: #f4d7c8; color: #7c2d12; }
+.chip-topic { background: #e7e0d4; color: #44403c; }
+.chip-link { background: #e0ecf4; color: #1e3a5f; }
+.chip-file { background: #e8edd8; color: #3f4d1e; }
+.material-form { border-top: 1px solid var(--line); padding-top: 12px; }
+.material-row { display: grid; grid-template-columns: 140px 1fr; gap: 10px; }
+.material-row .grow { min-width: 0; }
+@media (max-width: 700px) {
+  .material-row { grid-template-columns: 1fr; }
+  .topbar .hint { display: none; }
+}
+
+.site-foot {
+  margin-top: 36px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.site-foot a { font-weight: 600; }

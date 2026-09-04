@@ -67,6 +67,12 @@ function Calendar({ selected, onChange }) {
                 data-date={date ? toDateKey(date) : undefined}
                 className={`day ${date ? "" : "empty"} ${date && selected.includes(toDateKey(date)) ? "on" : ""}`}
                 disabled={!date}
+                onKeyDown={(event) => {
+                  if (!date || (event.key !== "Enter" && event.key !== " ")) return;
+                  event.preventDefault();
+                  const key = toDateKey(date);
+                  apply(key, selectedRef.current.includes(key) ? "remove" : "add");
+                }}
               >
                 {date ? date.getDate() : ""}
               </button>
@@ -86,6 +92,7 @@ export default function CreateEvent({ onCreated }) {
   const [name, setName] = useState("");
   const [managerName, setManagerName] = useState("");
   const [managerEmail, setManagerEmail] = useState("");
+  const [managerPassword, setManagerPassword] = useState("");
   const [durationMinutes, setDurationMinutes] = useState(DEFAULT_DURATION_MINUTES);
   const [mode, setMode] = useState("dates");
   const [dates, setDates] = useState(defaultDates);
@@ -112,6 +119,7 @@ export default function CreateEvent({ onCreated }) {
           name,
           managerName,
           managerEmail,
+          managerPassword,
           mode,
           dates,
           weekdays,
@@ -123,7 +131,11 @@ export default function CreateEvent({ onCreated }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not create event");
-      onCreated(data.id, { name: managerName.trim(), password: "", email: managerEmail.trim() });
+      onCreated(data.id, {
+        name: managerName.trim(),
+        password: managerPassword,
+        email: managerEmail.trim(),
+      });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -133,13 +145,24 @@ export default function CreateEvent({ onCreated }) {
 
   return (
     <main className="page">
+      <section className="hero">
+        <img src="/brand/hero.jpg" alt="Lorry I. Lokey Chemistry Building at Ben-Gurion University" />
+        <div className="hero-copy">
+          <p>Milo Research Group</p>
+          <h1>Find a time that works for the lab</h1>
+        </div>
+      </section>
+      <div className="photo-strip" aria-hidden="true">
+        <img src="/brand/group-trip-2025.jpg" alt="" />
+        <img src="/brand/erc-celebration.jpg" alt="" />
+      </div>
       <form onSubmit={(e) => { e.preventDefault(); create(); }}>
-      <h1>Plan a new event</h1>
+      <h1>Plan a group meeting</h1>
       <p className="lede">
         Pick possible dates and hours. Everyone opens the same link, paints green / yellow / red,
         and the group grid shows how many people can make each slot. Hours are split in half
         (30 minutes). The next two weeks are selected by default. You are the manager and can
-        email the group later if needed.
+        pin papers or topics, then email the group later if needed.
       </p>
 
       <input
@@ -161,6 +184,14 @@ export default function CreateEvent({ onCreated }) {
           placeholder="Your email (optional, for sending invites)"
           value={managerEmail}
           onChange={(e) => setManagerEmail(e.target.value)}
+        />
+        <input
+          type="password"
+          placeholder="Manager password (8+ characters)"
+          value={managerPassword}
+          onChange={(e) => setManagerPassword(e.target.value)}
+          minLength={8}
+          required
         />
       </div>
 
@@ -200,8 +231,15 @@ export default function CreateEvent({ onCreated }) {
           <h2>What times might work?</h2>
           <label className="field">
             <span>No earlier than</span>
-            <select value={hourStart} onChange={(e) => setHourStart(Number(e.target.value))}>
-              {hours.filter((h) => h.value < 24).map((h) => (
+            <select
+              value={hourStart}
+              onChange={(e) => {
+                const next = Number(e.target.value);
+                setHourStart(next);
+                setHourEnd((current) => Math.max(current, next + durationMinutes / 60));
+              }}
+            >
+              {hours.filter((h) => h.value <= 24 - durationMinutes / 60).map((h) => (
                 <option key={h.value} value={h.value}>{h.label}</option>
               ))}
             </select>
@@ -209,7 +247,7 @@ export default function CreateEvent({ onCreated }) {
           <label className="field">
             <span>No later than</span>
             <select value={hourEnd} onChange={(e) => setHourEnd(Number(e.target.value))}>
-              {hours.filter((h) => h.value > hourStart).map((h) => (
+              {hours.filter((h) => h.value >= hourStart + durationMinutes / 60).map((h) => (
                 <option key={h.value} value={h.value}>{h.label}</option>
               ))}
             </select>
@@ -224,7 +262,15 @@ export default function CreateEvent({ onCreated }) {
           </label>
           <label className="field">
             <span>Meeting length</span>
-            <select value={durationMinutes} onChange={(e) => setDurationMinutes(Number(e.target.value))}>
+            <select
+              value={durationMinutes}
+              onChange={(e) => {
+                const next = Number(e.target.value);
+                setDurationMinutes(next);
+                setHourStart((current) => Math.min(current, 24 - next / 60));
+                setHourEnd((current) => Math.max(current, Math.min(hourStart, 24 - next / 60) + next / 60));
+              }}
+            >
               {DURATION_OPTIONS.map((d) => (
                 <option key={d.value} value={d.value}>{d.label}</option>
               ))}
@@ -232,7 +278,18 @@ export default function CreateEvent({ onCreated }) {
           </label>
           <div className="ready">
             <span>Ready?</span>
-            <button className="primary" type="submit" disabled={busy || !name.trim() || !managerName.trim()}>
+            <button
+              className="primary"
+              type="submit"
+              disabled={
+                busy
+                || !name.trim()
+                || !managerName.trim()
+                || managerPassword.length < 8
+                || (mode === "dates" ? dates.length === 0 : weekdays.length === 0)
+                || (hourEnd - hourStart) * 60 < durationMinutes
+              }
+            >
               Create Event
             </button>
           </div>
@@ -240,6 +297,10 @@ export default function CreateEvent({ onCreated }) {
         </section>
       </div>
       </form>
+      <p className="site-foot">
+        <a href="https://anatmilo.com/" target="_blank" rel="noreferrer">Milo Research Group</a>
+        {" · "}Ben-Gurion University of the Negev
+      </p>
     </main>
   );
 }

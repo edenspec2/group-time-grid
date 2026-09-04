@@ -3,6 +3,7 @@ import TimeGrid from "../components/TimeGrid.jsx";
 import { bestTimes, icsForPin } from "../lib/score.js";
 import { eventSlots, formatSlotRange } from "../lib/slots.js";
 import { DURATION_OPTIONS, emailDraft, isManager } from "../lib/event.js";
+import Materials from "../components/Materials.jsx";
 
 function sessionKey(id) {
   return `gtg:${id}`;
@@ -24,6 +25,7 @@ export default function EventPage({ id }) {
   const [copied, setCopied] = useState(false);
   const pending = useRef({});
   const flushTimer = useRef(null);
+  const saving = useRef(false);
   const wsRef = useRef(null);
   const meRef = useRef(me);
   meRef.current = me;
@@ -45,41 +47,76 @@ export default function EventPage({ id }) {
   }, [id]);
 
   useEffect(() => {
+    let stopped = false;
+    let retryTimer = null;
+    let retryDelay = 1000;
     const proto = location.protocol === "https:" ? "wss:" : "ws:";
-    const ws = new WebSocket(`${proto}//${location.host}/ws`);
-    wsRef.current = ws;
-    ws.onopen = () => {
-      setLive("live");
-      ws.send(JSON.stringify({ type: "subscribe", eventId: id }));
+
+    function restoreServerState(message) {
+      setError(message);
+      fetch(`/api/events/${id}`)
+        .then((res) => res.json())
+        .then((data) => { if (data.id) setEvent(data); })
+        .catch(() => {});
+    }
+
+    function connect() {
+      if (stopped) return;
+      setLive("connecting");
+      const ws = new WebSocket(`${proto}//${location.host}/ws`);
+      wsRef.current = ws;
+      ws.onopen = () => {
+        retryDelay = 1000;
+        setLive("live");
+        ws.send(JSON.stringify({ type: "subscribe", eventId: id }));
+      };
+      ws.onmessage = (ev) => {
+        const msg = JSON.parse(ev.data);
+        if (msg.type === "state") {
+          setEvent(() => {
+            const next = msg.event;
+            const session = meRef.current;
+            const queued = pending.current;
+            if (!session || !Object.keys(queued).length) return next;
+            const mine = { ...(next.marks[session.name] || {}) };
+            for (const [slot, status] of Object.entries(queued)) {
+              if (status === "green") delete mine[slot];
+              else mine[slot] = status;
+            }
+            return { ...next, marks: { ...next.marks, [session.name]: mine } };
+          });
+        }
+        if (msg.type === "error") restoreServerState(msg.error);
+      };
+      ws.onclose = () => {
+        if (stopped) return;
+        setLive("offline");
+        retryTimer = setTimeout(connect, retryDelay);
+        retryDelay = Math.min(retryDelay * 2, 15000);
+      };
+      ws.onerror = () => ws.close();
+    }
+
+    connect();
+    return () => {
+      stopped = true;
+      clearTimeout(retryTimer);
+      wsRef.current?.close();
     };
-    ws.onmessage = (ev) => {
-      const msg = JSON.parse(ev.data);
-      if (msg.type === "state") {
-        setEvent(() => {
-          const next = msg.event;
-          const session = meRef.current;
-          const queued = pending.current;
-          if (!session || !Object.keys(queued).length) return next;
-          const mine = { ...(next.marks[session.name] || {}) };
-          for (const [slot, status] of Object.entries(queued)) {
-            if (status === "green") delete mine[slot];
-            else mine[slot] = status;
-          }
-          return { ...next, marks: { ...next.marks, [session.name]: mine } };
-        });
-      }
-      if (msg.type === "error") setError(msg.error);
-    };
-    ws.onclose = () => setLive("offline");
-    ws.onerror = () => setLive("offline");
-    return () => ws.close();
   }, [id]);
 
   useEffect(() => {
+    pending.current = {};
+    clearTimeout(flushTimer.current);
+    flushTimer.current = null;
     const saved = (() => {
       try { return JSON.parse(localStorage.getItem(sessionKey(id)) || "null"); } catch { return null; }
     })();
-    if (!saved?.name) return;
+    if (!saved?.name) {
+      setMe(null);
+      return;
+    }
+    setMe(saved);
     fetch(`/api/events/${id}/join`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -99,27 +136,67 @@ export default function EventPage({ id }) {
       .catch(() => {});
   }, [id]);
 
-  const flush = useCallback(() => {
-    const updates = pending.current;
-    pending.current = {};
+  const flush = useCallback(async () => {
+    if (saving.current) return;
+    const updates = { ...pending.current };
     const session = meRef.current;
     if (!session || !Object.keys(updates).length) return;
+    saving.current = true;
     const payload = {
-      type: "paint",
-      eventId: id,
       name: session.name,
       password: session.password || "",
       updates,
     };
-    if (wsRef.current?.readyState === 1) {
-      wsRef.current.send(JSON.stringify(payload));
-      return;
+    try {
+      const res = await fetch(`/api/events/${id}/paint`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        const error = new Error(data.error || "Could not save availability");
+        error.retryable = res.status === 429 || res.status >= 500;
+        throw error;
+      }
+      for (const [slotId, status] of Object.entries(updates)) {
+        if (pending.current[slotId] === status) delete pending.current[slotId];
+      }
+      setEvent(() => {
+        const queued = pending.current;
+        if (!Object.keys(queued).length) return data;
+        const mine = { ...(data.marks[session.name] || {}) };
+        for (const [slotId, status] of Object.entries(queued)) {
+          if (status === "green") delete mine[slotId];
+          else mine[slotId] = status;
+        }
+        return { ...data, marks: { ...data.marks, [session.name]: mine } };
+      });
+      setError("");
+    } catch (error) {
+      setError(error.message);
+      if (error.retryable !== false) {
+        clearTimeout(flushTimer.current);
+        flushTimer.current = setTimeout(() => {
+          flushTimer.current = null;
+          flush();
+        }, 2000);
+      } else {
+        pending.current = {};
+        fetch(`/api/events/${id}`)
+          .then((response) => response.json())
+          .then((data) => { if (data.id) setEvent(data); })
+          .catch(() => {});
+      }
+    } finally {
+      saving.current = false;
+      if (Object.keys(pending.current).length && !flushTimer.current) {
+        flushTimer.current = setTimeout(() => {
+          flushTimer.current = null;
+          flush();
+        }, 40);
+      }
     }
-    fetch(`/api/events/${id}/paint`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }).then((res) => res.json()).then((data) => { if (data.id) setEvent(data); }).catch(() => {});
   }, [id]);
 
   function queuePaint(slotId) {
@@ -133,7 +210,10 @@ export default function EventPage({ id }) {
       return { ...cur, marks };
     });
     clearTimeout(flushTimer.current);
-    flushTimer.current = setTimeout(flush, 40);
+    flushTimer.current = setTimeout(() => {
+      flushTimer.current = null;
+      flush();
+    }, 40);
   }
 
   async function join(e) {
@@ -157,6 +237,9 @@ export default function EventPage({ id }) {
 
   function signOut() {
     localStorage.removeItem(sessionKey(id));
+    pending.current = {};
+    clearTimeout(flushTimer.current);
+    flushTimer.current = null;
     setMe(null);
     setPassword("");
     setEmail("");
@@ -244,16 +327,20 @@ export default function EventPage({ id }) {
   }
   if (!event) return <main className="page"><p>Loading…</p></main>;
 
-  const manager = isManager(event, me?.name);
+  const manager = isManager(event, me?.name)
+    && event.people.some((person) => person.name === me?.name && person.hasPassword);
 
   return (
     <main className="page event-page">
+      <div className="event-banner">
+        <img src="/brand/group-trip-2025.jpg" alt="Milo Research Group" />
+      </div>
       <div className="event-head">
         <div>
           <h1>{event.name}</h1>
           <p className="lede">
             Times in {event.timezone}. Choose a status, then click a time box to set it.
-            Default is available (green). You can come back and edit anytime.
+            Default is available (green). Pin papers or topics below so the reading is on the meeting.
           </p>
         </div>
         <div className="share">
@@ -261,6 +348,15 @@ export default function EventPage({ id }) {
           <button className="ghost" onClick={copyLink}>{copied ? "Copied" : "Copy link"}</button>
         </div>
       </div>
+
+      <Materials
+        eventId={id}
+        materials={event.materials || []}
+        me={me}
+        manager={manager}
+        onEvent={setEvent}
+        onError={setError}
+      />
 
       <div className="layout">
         <section className="panel">
@@ -424,7 +520,9 @@ export default function EventPage({ id }) {
                 <button className="ghost" onClick={() => navigator.clipboard.writeText(formatSlotRange(event.pinnedSlot, event.durationMinutes, event))}>
                   Copy pinned time
                 </button>
-                <button className="ghost" onClick={downloadIcs}>Download .ics</button>
+                {event.mode === "dates" ? (
+                  <button className="ghost" onClick={downloadIcs}>Download .ics</button>
+                ) : null}
                 {manager ? <button className="linkish" onClick={() => patchEvent({ pinnedSlot: null })}>Unpin</button> : null}
               </div>
             ) : null}

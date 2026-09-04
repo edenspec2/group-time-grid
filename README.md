@@ -49,4 +49,12 @@ npm run build
 npm start
 ```
 
-On Render / Railway / Fly, set `NODE_ENV=production` and start with `npm start`. The service must allow WebSockets. Free hosts may wipe `data/events.json` on restart.
+On Render / Railway / Fly, set `NODE_ENV=production` and start with `npm start`. The service must allow WebSockets.
+
+For durable no-cost storage on Render, create a Supabase project and set:
+
+- `SUPABASE_URL` to the project URL
+- `SUPABASE_SERVICE_ROLE_KEY` to the server-only service-role key
+- `SUPABASE_BUCKET` to `group-time-grid` (optional; this is the default)
+
+The server creates a private Storage bucket automatically and stores both `events.json` and uploaded files there. Never expose the service-role key to the browser. Without these variables, local `data/` storage remains available for development but is ephemeral on free Render services.

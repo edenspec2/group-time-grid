@@ -86,10 +86,12 @@ export function formatSlotRange(startId, durationMinutes, event) {
   const start = parseSlot(startId);
   const endMin = start.hour * 60 + start.minute + durationMinutes;
   const col = eventColumns(event).find((c) => c.key === start.columnKey);
-  const endH = Math.floor(endMin / 60);
-  const endM = endMin % 60;
+  const dayOffset = Math.floor(endMin / (24 * 60));
+  const normalizedEnd = endMin % (24 * 60);
+  const endH = Math.floor(normalizedEnd / 60);
+  const endM = normalizedEnd % 60;
   const day = col ? `${col.label} ${col.sub === "weekly" ? "" : col.sub}`.trim() : start.columnKey;
-  return `${day} ${formatClock(start.hour, start.minute)}–${formatClock(endH, endM)}`;
+  return `${day} ${formatClock(start.hour, start.minute)}–${formatClock(endH, endM)}${dayOffset ? " (+1 day)" : ""}`;
 }
 
 export function hourOptions() {

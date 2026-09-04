@@ -1,6 +1,6 @@
 import { useMemo, useRef } from "react";
 import { heatColor, heatText, personStatus, slotBreakdown } from "../lib/score.js";
-import { formatClock, formatInZone, slotId } from "../lib/slots.js";
+import { formatClock, formatInZone, parseSlot, slotId } from "../lib/slots.js";
 
 export default function TimeGrid({
   event,
@@ -24,6 +24,22 @@ export default function TimeGrid({
 
   const style = { gridTemplateColumns: `72px repeat(${cols.length}, var(--cell-w))` };
   const tip = useMemo(() => (hoverSlot && mode === "heat" && !previewName ? slotBreakdown(event, hoverSlot) : null), [event, hoverSlot, mode, previewName]);
+  const pinnedSlots = useMemo(() => {
+    const pinned = new Set();
+    if (!event.pinnedSlot) return pinned;
+    try {
+      const start = parseSlot(event.pinnedSlot);
+      const startIndex = times.findIndex((time) => time.hour === start.hour && time.minute === start.minute);
+      const count = Math.round((event.durationMinutes || 120) / 30);
+      if (startIndex < 0 || !cols.some((column) => column.key === start.columnKey)) return pinned;
+      for (let index = startIndex; index < Math.min(startIndex + count, times.length); index++) {
+        pinned.add(slotId(start.columnKey, times[index].hour, times[index].minute));
+      }
+    } catch {
+      // Ignore invalid legacy pins instead of breaking the event page.
+    }
+    return pinned;
+  }, [cols, event.durationMinutes, event.pinnedSlot, times]);
 
   return (
     <div className="grid-wrap">
@@ -62,10 +78,19 @@ export default function TimeGrid({
                   <div
                     key={id}
                     data-slot={id}
-                    className={`cell ${hourStart ? "hour" : ""} ${heat ? "" : mine} ${event.pinnedSlot === id ? "pinned" : ""}`}
+                    className={`cell ${hourStart ? "hour" : ""} ${heat ? "" : mine} ${pinnedSlots.has(id) ? "pinned" : ""}`}
                     style={heat ? { background: bg, color: fg } : undefined}
+                    role={mode === "mine" ? "button" : undefined}
+                    tabIndex={mode === "mine" ? 0 : undefined}
+                    aria-label={mode === "mine" ? `${col.label} ${col.sub} ${formatClock(t.hour, t.minute)}: ${mine}` : undefined}
                     onClick={() => {
                       if (mode === "mine") onPaint?.(id);
+                    }}
+                    onKeyDown={(event) => {
+                      if (mode === "mine" && (event.key === "Enter" || event.key === " ")) {
+                        event.preventDefault();
+                        onPaint?.(id);
+                      }
                     }}
                     onPointerEnter={() => onHover?.(id)}
                     onPointerLeave={() => onHover?.(null)}

@@ -1,3 +1,5 @@
+import { addDays } from "./slots.js";
+
 export function personStatus(marks, name, slotId) {
   return marks?.[name]?.[slotId] || "green";
 }
@@ -113,7 +115,10 @@ export function icsForPin(event, startId) {
   const tz = (event.timezone || "UTC").replace(/[:]/g, "");
   const timed = !columnKey.startsWith("W");
   const start = timed ? icsStamp(columnKey, hour, minute) : "";
-  const end = timed ? icsStamp(columnKey, Math.floor(endMin / 60), endMin % 60) : "";
+  const endDayOffset = Math.floor(endMin / (24 * 60));
+  const endDate = timed ? addDays(columnKey, endDayOffset) : "";
+  const endMinutes = endMin % (24 * 60);
+  const end = timed ? icsStamp(endDate, Math.floor(endMinutes / 60), endMinutes % 60) : "";
   return `BEGIN:VCALENDAR
 VERSION:2.0
 PRODID:-//Group Time Grid//EN

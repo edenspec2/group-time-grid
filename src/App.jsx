@@ -22,9 +22,13 @@ export default function App() {
     <>
       <header className="topbar">
         <a className="brand" href="/" onClick={(e) => { e.preventDefault(); go("/"); }}>
-          Group Time Grid
+          <img src="/brand/logo.png" alt="Milo Lab" />
+          <span className="brand-text">
+            <strong>Milo Group</strong>
+            <small>Meeting times</small>
+          </span>
         </a>
-        <span className="hint">When2meet-style availability, with yellow and live counts</span>
+        <span className="hint">Physical organic chemistry · Ben-Gurion University</span>
       </header>
       {match ? <EventPage id={match[1]} /> : <CreateEvent onCreated={(id, session) => {
         if (session) localStorage.setItem(`gtg:${id}`, JSON.stringify(session));
