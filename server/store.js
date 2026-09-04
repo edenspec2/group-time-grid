@@ -39,8 +39,8 @@ export async function initializeStore() {
   if (Boolean(supabaseUrl) !== Boolean(supabaseKey)) {
     throw new Error("Set both SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY");
   }
-  if (!supabase && process.env.NODE_ENV === "production" && process.env.ALLOW_EPHEMERAL_STORAGE !== "true") {
-    throw new Error("Durable storage is required in production. Configure Supabase or explicitly allow ephemeral storage.");
+  if (!supabase && process.env.NODE_ENV === "production") {
+    console.warn("Supabase is not configured; using ephemeral local storage.");
   }
   if (supabase) {
     await ensureBucket();
