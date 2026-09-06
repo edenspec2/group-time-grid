@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import ChemistryGames from "./pages/ChemistryGames.jsx";
 import CreateEvent from "./pages/CreateEvent.jsx";
 import EventPage from "./pages/EventPage.jsx";
 
@@ -28,9 +29,12 @@ export default function App() {
             <small>Meeting times</small>
           </span>
         </a>
-        <span className="hint">Physical organic chemistry · Ben-Gurion University</span>
+        <nav className="topnav">
+          <a href="/games" onClick={(e) => { e.preventDefault(); go("/games"); }}>Chemistry games</a>
+          <span className="hint">Physical organic chemistry · Ben-Gurion University</span>
+        </nav>
       </header>
-      {match ? <EventPage id={match[1]} /> : <CreateEvent onCreated={(id, session) => {
+      {match ? <EventPage id={match[1]} /> : path === "/games" ? <ChemistryGames /> : <CreateEvent onCreated={(id, session) => {
         if (session) localStorage.setItem(`gtg:${id}`, JSON.stringify(session));
         go(`/m/${id}`);
       }} />}
