@@ -23,6 +23,7 @@ export default function EventPage({ id }) {
   const [hoverSlot, setHoverSlot] = useState(null);
   const [live, setLive] = useState("connecting");
   const [copied, setCopied] = useState(false);
+  const [choiceSaveStatus, setChoiceSaveStatus] = useState("idle");
   const pending = useRef({});
   const flushTimer = useRef(null);
   const saving = useRef(false);
@@ -107,6 +108,7 @@ export default function EventPage({ id }) {
 
   useEffect(() => {
     pending.current = {};
+    setChoiceSaveStatus("idle");
     clearTimeout(flushTimer.current);
     flushTimer.current = null;
     const saved = (() => {
@@ -137,11 +139,16 @@ export default function EventPage({ id }) {
   }, [id]);
 
   const flush = useCallback(async () => {
-    if (saving.current) return;
+    if (saving.current) return false;
     const updates = { ...pending.current };
     const session = meRef.current;
-    if (!session || !Object.keys(updates).length) return;
+    if (!session) return false;
+    if (!Object.keys(updates).length) {
+      setChoiceSaveStatus("saved");
+      return true;
+    }
     saving.current = true;
+    setChoiceSaveStatus("saving");
     const payload = {
       name: session.name,
       password: session.password || "",
@@ -172,8 +179,11 @@ export default function EventPage({ id }) {
         }
         return { ...data, marks: { ...data.marks, [session.name]: mine } };
       });
+      setChoiceSaveStatus(Object.keys(pending.current).length ? "pending" : "saved");
       setError("");
+      return true;
     } catch (error) {
+      setChoiceSaveStatus("error");
       setError(error.message);
       if (error.retryable !== false) {
         clearTimeout(flushTimer.current);
@@ -188,6 +198,7 @@ export default function EventPage({ id }) {
           .then((data) => { if (data.id) setEvent(data); })
           .catch(() => {});
       }
+      return false;
     } finally {
       saving.current = false;
       if (Object.keys(pending.current).length && !flushTimer.current) {
@@ -202,6 +213,7 @@ export default function EventPage({ id }) {
   function queuePaint(slotId) {
     if (!me) return;
     pending.current[slotId] = color;
+    setChoiceSaveStatus("pending");
     setEvent((cur) => {
       if (!cur) return cur;
       const marks = { ...cur.marks, [me.name]: { ...(cur.marks[me.name] || {}) } };
@@ -214,6 +226,12 @@ export default function EventPage({ id }) {
       flushTimer.current = null;
       flush();
     }, 40);
+  }
+
+  async function submitChoices() {
+    clearTimeout(flushTimer.current);
+    flushTimer.current = null;
+    await flush();
   }
 
   async function join(e) {
@@ -233,6 +251,7 @@ export default function EventPage({ id }) {
     localStorage.setItem(sessionKey(id), JSON.stringify(session));
     setMe(session);
     setEvent(data.event);
+    setChoiceSaveStatus("idle");
   }
 
   function signOut() {
@@ -244,6 +263,7 @@ export default function EventPage({ id }) {
     setPassword("");
     setEmail("");
     setError("");
+    setChoiceSaveStatus("idle");
   }
 
   function startEditAs(personName) {
@@ -407,6 +427,21 @@ export default function EventPage({ id }) {
                 paintColor={color}
                 onPaint={queuePaint}
               />
+              <div className="submit-choices">
+                <button
+                  className="primary"
+                  type="button"
+                  disabled={choiceSaveStatus === "saving"}
+                  onClick={submitChoices}
+                >
+                  {choiceSaveStatus === "saving" ? "Saving..." : "Submit choices"}
+                </button>
+                <span role="status" aria-live="polite">
+                  {choiceSaveStatus === "saved" ? "Choices saved." : null}
+                  {choiceSaveStatus === "pending" ? "Saving changes..." : null}
+                  {choiceSaveStatus === "error" ? "Could not save. Try again." : null}
+                </span>
+              </div>
             </>
           )}
           <p className={`status ${live === "live" ? "" : "off"}`}>
