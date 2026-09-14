@@ -405,6 +405,7 @@ button.ghost, button.linkish {
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 16px;
 }
+.game-grid-two { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
 .game-card p { color: var(--muted); font-size: 14px; line-height: 1.45; }
 .molecule {
   width: min(280px, 100%);
@@ -479,6 +480,29 @@ button.ghost, button.linkish {
 }
 .wordle-key.wide { min-width: 56px; font-size: 12px; }
 .wordle-key.wordle-correct, .wordle-key.wordle-present, .wordle-key.wordle-absent { color: inherit; }
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
+}
+.high-contrast .wordle-correct { background: #166534; }
+.high-contrast .wordle-present { background: #a16207; color: #fff; }
+.high-contrast .wordle-absent { background: #1c1917; }
+.high-contrast .wordle-cell[data-tone="correct"]::after,
+.high-contrast .wordle-cell[data-tone="present"]::after,
+.high-contrast .wordle-cell[data-tone="absent"]::after {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+.high-contrast .wordle-cell[data-tone="correct"]::after { content: "OK"; }
+.high-contrast .wordle-cell[data-tone="present"]::after { content: "~"; }
+.high-contrast .wordle-cell[data-tone="absent"]::after { content: "x"; }
+.colorblind .conn-yellow::before { content: "1 · "; }
+.colorblind .conn-green::before { content: "2 · "; }
+.colorblind .conn-blue::before { content: "3 · "; }
+.colorblind .conn-purple::before { content: "4 · "; }
 
 .conn-solved { display: grid; gap: 8px; margin: 8px 0 12px; }
 .conn-group {

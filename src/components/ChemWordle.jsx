@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   FUN,
-  WORDLE_GUESSES,
+  WORDLE_GUESS_OPTIONS,
   WORDLE_HINTS,
   WORDLE_PACKS,
   hardModeError,
   pickWordleAnswer,
   scoreWordleGuess,
+  wordleShare,
 } from "../lib/chemistry-games.js";
 
 const KEYS = ["QWERTYUIOP".split(""), "ASDFGHJKL".split(""), ["Enter", ..."ZXCVBNM".split(""), "⌫"]];
@@ -32,6 +33,9 @@ export default function ChemWordle({ onBack }) {
   const [packId, setPackId] = useState("classic");
   const [daily, setDaily] = useState(false);
   const [hard, setHard] = useState(false);
+  const [maxGuesses, setMaxGuesses] = useState(6);
+  const [contrast, setContrast] = useState(false);
+  const [showFirst, setShowFirst] = useState(false);
   const [round, setRound] = useState(0);
   const pack = WORDLE_PACKS.find((item) => item.id === packId) || WORDLE_PACKS[1];
   const answer = useMemo(() => pickWordleAnswer(pack, daily), [pack, daily, round]);
@@ -40,21 +44,27 @@ export default function ChemWordle({ onBack }) {
   const [status, setStatus] = useState("");
   const [ended, setEnded] = useState("");
   const [hint, setHint] = useState("");
+  const [shake, setShake] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [streak, setStreak] = useState(() => Number(loadStats().streak || 0));
-
   const letters = pack.letters;
 
-  function resetBoard() {
+  useEffect(() => {
     setRows([]);
     setCurrent("");
-    setStatus(daily ? "Today's flask. Same word for everyone." : `Guess a ${letters}-letter chemistry word.`);
+    setStatus(daily
+      ? "Today's flask. Type any letters — the hidden word is chemistry."
+      : `Any ${letters}-letter word is allowed. The answer is chemistry.`);
     setEnded("");
     setHint("");
-  }
-
-  useEffect(() => {
-    resetBoard();
+    setCopied(false);
   }, [answer, letters, daily]);
+
+  function bump(message) {
+    setStatus(message);
+    setShake(true);
+    window.setTimeout(() => setShake(false), 420);
+  }
 
   function changePack(id) {
     setPackId(id);
@@ -71,17 +81,17 @@ export default function ChemWordle({ onBack }) {
     if (ended) return;
     const guess = word.toUpperCase();
     if (guess.length !== letters) {
-      setStatus(`Need ${letters} letters.`);
+      bump(`Need ${letters} letters.`);
       return;
     }
-    if (!WORDLE_GUESSES.has(guess) || guess.length !== letters) {
-      setStatus("Not in the chemistry word list.");
+    if (rows.some((row) => row.letters.join("") === guess)) {
+      bump("Already tried that.");
       return;
     }
     if (hard) {
       const hardError = hardModeError(guess, rows);
       if (hardError) {
-        setStatus(hardError);
+        bump(hardError);
         return;
       }
     }
@@ -95,15 +105,15 @@ export default function ChemWordle({ onBack }) {
       setStreak(nextStreak);
       setEnded("won");
       setStatus(FUN.wordleWin(nextRows.length));
-    } else if (nextRows.length >= 6) {
+    } else if (nextRows.length >= maxGuesses) {
       localStorage.setItem(STATS_KEY, JSON.stringify({ streak: 0 }));
       setStreak(0);
       setEnded("lost");
       setStatus(FUN.wordleLose(answer));
     } else {
-      setStatus(`${6 - nextRows.length} left.`);
+      setStatus(`${maxGuesses - nextRows.length} left. Any word is fine.`);
     }
-  }, [answer, ended, hard, letters, rows]);
+  }, [answer, ended, hard, letters, maxGuesses, rows]);
 
   const typeLetter = useCallback((key) => {
     if (ended) return;
@@ -132,12 +142,22 @@ export default function ChemWordle({ onBack }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [typeLetter]);
 
+  async function copyShare() {
+    const text = wordleShare(rows, ended === "won", maxGuesses);
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+    } catch {
+      setStatus(text.replaceAll("\n", " · "));
+    }
+  }
+
   const colors = letterColors(rows);
-  const empties = 6 - rows.length - (ended ? 0 : 1);
+  const empties = maxGuesses - rows.length - (ended ? 0 : 1);
 
   return (
     <section className="panel game-play">
-      <p className="help">Chemle · {pack.label} · {letters} letters · streak {streak}</p>
+      <p className="help">Chemle · {pack.label} · {letters} letters · {maxGuesses} guesses · streak {streak}</p>
       <h2>{daily ? "Today's word" : "Guess the word"}</h2>
       <div className="game-options" role="group" aria-label="Chemle options">
         {WORDLE_PACKS.map((item) => (
@@ -150,6 +170,16 @@ export default function ChemWordle({ onBack }) {
             {item.label} · {item.letters}
           </button>
         ))}
+        {WORDLE_GUESS_OPTIONS.map((count) => (
+          <button
+            key={count}
+            type="button"
+            className={`game-chip ${maxGuesses === count ? "on" : ""}`}
+            onClick={() => { setMaxGuesses(count); setRound((n) => n + 1); }}
+          >
+            {count} guesses
+          </button>
+        ))}
         <button
           type="button"
           className={`game-chip ${daily ? "on" : ""}`}
@@ -160,16 +190,26 @@ export default function ChemWordle({ onBack }) {
         <button type="button" className={`game-chip ${hard ? "on" : ""}`} onClick={() => setHard((value) => !value)}>
           Hard mode
         </button>
+        <button type="button" className={`game-chip ${showFirst ? "on" : ""}`} onClick={() => setShowFirst((value) => !value)}>
+          First letter
+        </button>
+        <button type="button" className={`game-chip ${contrast ? "on" : ""}`} onClick={() => setContrast((value) => !value)}>
+          High contrast
+        </button>
       </div>
-      <div className="wordle-board" style={{ "--letters": letters, width: `min(${letters * 52}px, 100%)` }} aria-label="Guesses">
+      <div
+        className={`wordle-board ${shake ? "shake" : ""} ${contrast ? "high-contrast" : ""}`}
+        style={{ "--letters": letters, width: `min(${letters * 52}px, 100%)` }}
+        aria-label="Guesses"
+      >
         {rows.map((row, i) => (
           <div className="wordle-row" key={`g-${i}`}>
             {row.letters.map((letter, j) => (
-              <span className={`wordle-cell wordle-${row.tones[j]}`} key={`${letter}-${j}`}>{letter}</span>
+              <span className={`wordle-cell wordle-${row.tones[j]}`} data-tone={row.tones[j]} key={`${letter}-${j}`}>{letter}</span>
             ))}
           </div>
         ))}
-        {!ended && rows.length < 6 ? (
+        {!ended && rows.length < maxGuesses ? (
           <div className="wordle-row">
             {Array.from({ length: letters }, (_, i) => (
               <span className={`wordle-cell ${current[i] ? "wordle-typed" : "wordle-empty"}`} key={`c-${i}`}>
@@ -184,7 +224,11 @@ export default function ChemWordle({ onBack }) {
           </div>
         ))}
       </div>
-      <p className="help" role="status">{status}{hint ? ` ${hint}` : ""}</p>
+      <p className="help" role="status">
+        {showFirst ? `Starts with ${answer[0]}. ` : ""}
+        {status}
+        {hint ? ` ${hint}` : ""}
+      </p>
       <div className="wordle-keys">
         {KEYS.map((row, i) => (
           <div className="wordle-key-row" key={i}>
@@ -224,7 +268,10 @@ export default function ChemWordle({ onBack }) {
             ) : null}
           </>
         ) : (
-          <button className="primary" type="button" onClick={playAgain}>Play again</button>
+          <>
+            <button className="primary" type="button" onClick={playAgain}>Play again</button>
+            <button className="ghost" type="button" onClick={copyShare}>{copied ? "Copied" : "Share"}</button>
+          </>
         )}
         <button className="ghost" type="button" onClick={onBack}>All games</button>
       </div>
