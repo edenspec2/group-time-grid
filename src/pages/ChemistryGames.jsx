@@ -1,6 +1,30 @@
 import { useMemo, useState } from "react";
+import ChemConnections from "../components/ChemConnections.jsx";
+import ChemWordle from "../components/ChemWordle.jsx";
 import Molecule from "../components/Molecule.jsx";
 import { CHEMISTRY_GAMES, dealRound } from "../lib/chemistry-games.js";
+
+const MENU = [
+  ...CHEMISTRY_GAMES.map((item) => ({
+    ...item,
+    kind: "quiz",
+    meta: `${item.questions.length} questions · 8 per round`,
+  })),
+  {
+    id: "wordle",
+    kind: "wordle",
+    title: "Chemle",
+    blurb: "Wordle with chemistry packs: 4-letter starters, classic groups, lab-bench words, and a 6-letter challenge. Daily flask included.",
+    meta: "4 packs · daily · hard mode",
+  },
+  {
+    id: "connections",
+    kind: "connections",
+    title: "Lab Connections",
+    blurb: "Sixteen reagents, methods, or labels. Pick a theme, a difficulty, and sort four groups of four.",
+    meta: "15 puzzles · 6 themes · 3 life modes",
+  },
+];
 
 export default function ChemistryGames() {
   const [gameId, setGameId] = useState(null);
@@ -51,17 +75,21 @@ export default function ChemistryGames() {
         </div>
       </div>
 
-      {!game ? (
+      {!gameId ? (
         <div className="game-grid">
-          {CHEMISTRY_GAMES.map((item) => (
+          {MENU.map((item) => (
             <section className="panel game-card" key={item.id}>
               <h2>{item.title}</h2>
               <p>{item.blurb}</p>
-              <p className="help">{item.questions.length} questions · 8 per round</p>
+              <p className="help">{item.meta}</p>
               <button className="primary" type="button" onClick={() => start(item.id)}>Play</button>
             </section>
           ))}
         </div>
+      ) : gameId === "wordle" ? (
+        <ChemWordle onBack={() => setGameId(null)} />
+      ) : gameId === "connections" ? (
+        <ChemConnections onBack={() => setGameId(null)} />
       ) : done ? (
         <section className="panel game-play">
           <h2>{game.title}</h2>
