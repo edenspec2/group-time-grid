@@ -393,6 +393,59 @@ button.ghost, button.linkish {
   .topbar .hint { display: none; }
 }
 
+.cap-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 0 0 28px;
+}
+.cap {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 14px 14px;
+}
+.cap h2 { margin: 10px 0 4px; }
+.cap p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.45; }
+.cap-demo {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+  min-height: 64px;
+  align-content: center;
+}
+.cap-demo > span.g,
+.cap-demo > span.y,
+.cap-demo > span.r { height: 16px; border-radius: 4px; }
+.cap-demo .g { background: var(--green); }
+.cap-demo .y { background: var(--yellow); }
+.cap-demo .r { background: var(--red); }
+.cap-demo.materials {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.cap-demo.games { display: flex; gap: 6px; align-items: center; }
+.cap-demo.games span {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--header);
+  color: #fff;
+}
+.cap-link {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+}
+@media (max-width: 800px) {
+  .cap-row { grid-template-columns: 1fr; }
+}
+
 .site-foot {
   margin-top: 36px;
   font-size: 13px;
@@ -407,6 +460,45 @@ button.ghost, button.linkish {
 }
 .game-grid-two { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
 .game-card p { color: var(--muted); font-size: 14px; line-height: 1.45; }
+.game-card h2 { margin-top: 12px; }
+.menu-preview {
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid var(--line);
+  min-height: 112px;
+  padding: 10px;
+}
+.menu-preview.wordle { display: grid; gap: 5px; }
+.menu-preview.wordle div { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
+.menu-preview.wordle span { height: 22px; border-radius: 4px; background: #d6d3d1; }
+.menu-preview.wordle .g { background: #16a34a; }
+.menu-preview.wordle .y { background: #ca8a04; }
+.menu-preview.wordle .c { background: #d6d3d1; }
+.menu-preview.connections { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; align-content: center; }
+.menu-preview.connections span { height: 18px; border-radius: 4px; background: #efe8dc; }
+.menu-preview.connections .solved {
+  grid-column: 1 / -1;
+  height: 22px;
+  background: #dbeafe;
+  color: #1e3a8a;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+}
+.menu-preview.strands { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; }
+.menu-preview.strands span {
+  aspect-ratio: 1;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+}
+.menu-preview.strands .on { background: #facc15; border-color: #ca8a04; }
 .molecule {
   width: min(280px, 100%);
   height: 140px;
@@ -546,3 +638,43 @@ button.ghost, button.linkish {
 @media (max-width: 700px) {
   .conn-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+.strand-word {
+  min-height: 28px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  margin: 0 0 10px;
+}
+.strand-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+  width: min(360px, 100%);
+  touch-action: none;
+  user-select: none;
+  margin-bottom: 12px;
+}
+.strand-cell {
+  aspect-ratio: 1;
+  border: 2px solid var(--line);
+  background: #fff;
+  border-radius: 999px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.strand-cell.on { background: var(--accent-soft); border-color: var(--accent); }
+.strand-cell.theme { background: #93c5fd; border-color: #1d4ed8; color: #1e3a8a; }
+.strand-cell.spanagram { background: #facc15; border-color: #ca8a04; }
+.strand-cell.hinted { box-shadow: 0 0 0 3px #fb7185; }
+.strand-found { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.strand-tag {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #eee7dc;
+}
+.strand-tag.theme { background: #dbeafe; color: #1e3a8a; }
+.strand-tag.spanagram { background: #fef08a; }
+.strand-tag.extra { background: #e7e0d4; }

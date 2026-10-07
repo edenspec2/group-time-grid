@@ -428,3 +428,81 @@ export const CONNECTION_LIVES = [
 ];
 
 export const WORDLE_GUESS_OPTIONS = [4, 6, 8];
+
+export const STRANDS_ROWS = 8;
+export const STRANDS_COLS = 6;
+
+export const STRANDS_PUZZLES = [
+  {"id":"carbonyls","theme":"Carbonyls on the bench","spanagram":"CARBONYL","words":["ALDEHYDE","KETONE","ESTER","AMIDE","LACTONE","IMIDE","ACID"],"grid":["MINBRE","IYOACN","EDLEKO","DIONTE","CTCAEA","RALHLD","ESMAYD","ETIDEE"],"paths":{"CARBONYL":[10,9,4,3,8,2,7,14],"ALDEHYDE":[29,34,35,28,33,40,41,47],"KETONE":[16,23,22,17,11,5],"ESTER":[42,37,43,36,30],"AMIDE":[39,38,44,45,46],"LACTONE":[32,27,26,25,20,21,15],"IMIDE":[1,0,6,13,12],"ACID":[31,24,19,18]}},
+  {"id":"halogens","theme":"The halogen family","spanagram":"HALOGENS","words":["FLUORINE","CHLORINE","BROMINE","IODINE","HALIDE","ATOMS"],"grid":["OMSOAI","TSGHLO","IANEID","LDENCL","AHENOH","RIEEIR","FONRIE","ULBOMN"],"paths":{"HALOGENS":[9,4,10,3,8,15,14,7],"FLUORINE":[36,43,42,37,30,31,38,32],"CHLORINE":[22,29,23,28,35,34,27,33],"BROMINE":[44,39,45,46,40,47,41],"IODINE":[5,11,17,16,21,20],"HALIDE":[25,24,18,12,19,26],"ATOMS":[13,6,0,1,2]}},
+  {"id":"solvents","theme":"What the reaction is dissolved in","spanagram":"SOLVENTS","words":["HEXANE","TOLUENE","ACETONE","METHANOL","ETHER","DIOXANE"],"grid":["ETHREC","HAXEAT","NEETLO","ESMHON","TNANDE","SLEINE","OVOEOU","ENAXTL"],"paths":{"SOLVENTS":[30,36,31,37,32,25,24,19],"HEXANE":[6,13,8,7,12,18],"TOLUENE":[46,40,47,41,35,34,39],"ACETONE":[10,5,4,11,17,23,29],"METHANOL":[20,14,15,21,26,27,22,16],"ETHER":[0,1,2,9,3],"DIOXANE":[28,33,38,45,44,43,42]}},
+  {"id":"aromatics","theme":"Rings with a 4n+2 story","spanagram":"AROMATIC","words":["BENZENE","PHENOL","ANILINE","FURAN","PYRROLE","PYRIDINE"],"grid":["NINAUF","ALERIC","INYTOA","OPRAMR","LRNERY","EEZEPI","HNNBDI","EPOLNE"],"paths":{"AROMATIC":[17,23,16,22,21,15,10,11],"BENZENE":[39,33,38,32,27,26,31],"PHENOL":[43,36,42,37,44,45],"ANILINE":[6,0,1,7,12,13,8],"FURAN":[5,4,9,3,2],"PYRROLE":[19,14,20,25,18,24,30],"PYRIDINE":[34,29,28,35,40,41,46,47]}},
+  {"id":"labgear","theme":"Stuff on the bench","spanagram":"GLASSWARE","words":["VIAL","CLAMP","SEPTUM","SYRINGE","BEAKER","FUNNEL","FLASK"],"grid":["UNYSLF","FNRINA","EPSGES","LTEMMK","LSUACP","AGSELL","AWEKRA","REABVI"],"paths":{"GLASSWARE":[31,24,30,25,32,37,36,42,43],"VIAL":[46,47,41,35],"CLAMP":[28,34,27,22,29],"SEPTUM":[14,20,13,19,26,21],"SYRINGE":[3,2,8,9,10,15,16],"BEAKER":[45,38,44,39,33,40],"FUNNEL":[6,0,1,7,12,18],"FLASK":[5,4,11,17,23]}},
+  {"id":"alkenes","theme":"Unsaturated carbons","spanagram":"ALKENES","words":["ETHENE","STYRENE","DIENE","ALKYNE","ALLENE","VINYL","OLEFIN"],"grid":["ENEELA","YKLNSL","ALYEKA","EHNNEL","ETIOFE","NVLEIN","EESYNE","ENRTDI"],"paths":{"ALKENES":[17,23,16,22,21,15,10],"ETHENE":[18,25,19,24,30,36],"STYRENE":[38,45,39,44,37,43,42],"DIENE":[46,47,41,35,29],"ALKYNE":[12,13,7,6,1,0],"ALLENE":[5,11,4,3,9,2],"VINYL":[31,26,20,14,8],"OLEFIN":[27,32,33,28,34,40]}},
+  {"id":"spectra","theme":"How we see molecules","spanagram":"SPECTRA","words":["MASS","INFRARED","PROTON","SHIFT","PEAKS","NOESY","COSY","HMBC"],"grid":["NOORFT","MTPISC","SAPEHB","SDSCAM","ERTRCH","IFAKPO","NRSEAS","YSEONY"],"paths":{"SPECTRA":[20,14,15,21,26,27,22],"MASS":[6,13,12,18],"INFRARED":[30,36,31,37,32,25,24,19],"PROTON":[8,3,2,7,1,0],"SHIFT":[10,16,9,4,5],"PEAKS":[34,39,40,33,38],"NOESY":[46,45,44,43,42],"COSY":[28,35,41,47],"HMBC":[29,23,17,11]}}
+];
+
+export function strandsLetter(grid, index) {
+  const row = Math.floor(index / STRANDS_COLS);
+  const col = index % STRANDS_COLS;
+  return grid[row][col];
+}
+
+export function strandsAdjacent(a, b) {
+  const ar = Math.floor(a / STRANDS_COLS);
+  const ac = a % STRANDS_COLS;
+  const br = Math.floor(b / STRANDS_COLS);
+  const bc = b % STRANDS_COLS;
+  return Math.max(Math.abs(ar - br), Math.abs(ac - bc)) === 1;
+}
+
+export function findStrandsPath(grid, word, forbidden = new Set()) {
+  const letters = word.split("");
+  const total = STRANDS_ROWS * STRANDS_COLS;
+  function walk(i, cell, path) {
+    if (i === letters.length) return path;
+    for (let next = 0; next < total; next += 1) {
+      if (forbidden.has(next) || path.includes(next) || !strandsAdjacent(cell, next)) continue;
+      if (strandsLetter(grid, next) !== letters[i]) continue;
+      const found = walk(i + 1, next, [...path, next]);
+      if (found) return found;
+    }
+    return null;
+  }
+  for (let start = 0; start < total; start += 1) {
+    if (forbidden.has(start) || strandsLetter(grid, start) !== letters[0]) continue;
+    const path = walk(1, start, [start]);
+    if (path) return path;
+  }
+  return null;
+}
+
+export function strandsHintPath(puzzle, word, forbidden = new Set()) {
+  const official = puzzle.paths?.[word];
+  if (official?.length && official.every((cell) => !forbidden.has(cell))) return official;
+  return findStrandsPath(puzzle.grid, word, forbidden);
+}
+
+export function strandsShare(puzzle, extraCount) {
+  const theme = "🔵".repeat(puzzle.words.length);
+  const span = "🟡";
+  return `Lab Strands\n${puzzle.theme}\n${theme}\n${span}\n${extraCount} extra word${extraCount === 1 ? "" : "s"}`;
+}
+
+export const STRANDS_EXTRAS = new Set([
+  ...WORDLE_PACKS.flatMap((pack) => pack.words),
+  ...STRANDS_PUZZLES.flatMap((puzzle) => [puzzle.spanagram, ...puzzle.words]),
+  ...CONNECTION_PUZZLES.flatMap((puzzle) =>
+    puzzle.groups.flatMap((group) =>
+      group.items
+        .map((item) => item.toUpperCase().replace(/[^A-Z]/g, ""))
+        .filter((word) => word.length >= 4)
+    )
+  ),
+]);
+
+export function dealStrandsPuzzle(avoidId = "") {
+  const pool = STRANDS_PUZZLES.filter((puzzle) => puzzle.id !== avoidId);
+  const list = pool.length ? pool : STRANDS_PUZZLES;
+  return list[Math.floor(Math.random() * list.length)];
+}

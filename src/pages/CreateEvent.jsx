@@ -159,11 +159,49 @@ export default function CreateEvent({ onCreated }) {
       <form onSubmit={(e) => { e.preventDefault(); create(); }}>
       <h1>Plan a group meeting</h1>
       <p className="lede">
-        Pick possible dates and hours. Everyone opens the same link, paints green / yellow / red,
-        and the group grid shows how many people can make each slot. Hours are split in half
-        (30 minutes). The next two weeks are selected by default. You are the manager and can
-        pin papers or topics, then email the group later if needed.
+        One link for the lab. People paint the hours, the manager pins the papers, and the games stay off to the side.
       </p>
+      <section className="cap-row" aria-label="What this page does">
+        <article className="cap">
+          <div className="cap-demo" aria-hidden="true">
+            {["g", "g", "y", "r", "g", "y", "g", "r", "y", "g", "g", "y"].map((tone, index) => (
+              <span className={tone} key={index} />
+            ))}
+          </div>
+          <h2>A grid everyone paints</h2>
+          <p>Green, yellow, or red on each half hour. The count shows who can make that slot.</p>
+        </article>
+        <article className="cap">
+          <div className="cap-demo materials" aria-hidden="true">
+            <span className="chip chip-paper">Paper</span>
+            <span className="chip chip-topic">Topic</span>
+            <span className="chip chip-file">File</span>
+            <span className="chip chip-link">Link</span>
+          </div>
+          <h2>Papers stay with the meeting</h2>
+          <p>Pin a paper, a topic, or a file. The group sees them on the same page as the grid.</p>
+        </article>
+        <article className="cap">
+          <div className="cap-demo games" aria-hidden="true">
+            <span>Chemle</span>
+            <span>Groups</span>
+            <span>Strands</span>
+          </div>
+          <h2>Lab games while you wait</h2>
+          <p>Chemle, Lab Connections, and Lab Strands. A game is not saved onto the meeting.</p>
+          <a
+            className="cap-link"
+            href="/games"
+            onClick={(event) => {
+              event.preventDefault();
+              history.pushState({}, "", "/games");
+              window.dispatchEvent(new PopStateEvent("popstate"));
+            }}
+          >
+            Open the games
+          </a>
+        </article>
+      </section>
 
       <input
         className="event-name"
